@@ -1,0 +1,148 @@
+-- ** Project On Indian Census of 2011 **
+
+-- ** Topics Covered **
+-- Adding Constraint, Aggregation functions, Union, Joins, Subquery, Temp table 
+
+-- Creating new database name 'Census'
+
+Create database Census;
+
+Use Census;
+
+Select * From Population;
+Select * From District;
+Select * From Literacy_rate;
+Select * From literacy;
+
+-- ** ADD FOREIGN KEY **
+-- Create Relationship Between district and population table
+
+Alter table district
+add constraint FK_district_population_01
+Foreign Key (State) references population (state);
+
+----------------------------------------------------------------------------------------------------------------
+
+-- ** AGGRIGATION FUNGTIONS **
+-- Total population of India in 2011.
+
+Select Sum(Population_in_2011) as Total_population 
+From population;
+
+-- 
+Select District, state, Max(sex_ratio) as max_ratio, (sex_ratio / population) * 100  
+From District
+Group By district, State, Population, Sex_ratio
+Order By state;
+
+-- Percentage Growth of population in 10 years.
+
+Select Sr_no, State, (Estimated_population_in_2022 / population_in_2011) as Percent_growth 
+From Population
+Group by Sr_no, State, Estimated_population_in_2022, Population_in_2011
+Order By Percent_Growth Desc;
+
+-- State Having Lowest and highest Literacy Rate
+
+Select Top 1 Sr_No, state, Min (literacy) as Lowest_Literacy 
+From literacy
+Group By Sr_No,state, Literacy
+order By literacy;
+
+Select Max(literacy)
+From literacy;
+
+-- Average Literacy Rate In 
+Select Avg(literacy)
+From district
+where State = 'Maharashtra';
+
+-- Average Literacy Rate of females.
+
+Select State, Round(AVG(female),0) AVG_Female_Literacy 
+From Census..Literacy
+Group By state 
+order By AVG_Female_Literacy Desc;
+
+-- Average Growth Rate Per State.
+
+Select Sr_no, State, Avg(Sex_Ratio) as Avg_Sex_ratio
+From District
+Group By Sr_No, State
+Order By Sr_no;
+
+-- Average growth and literacy of 'Pradesh' states
+
+Select District, State, (AVG(Growth)*100) as Avg_Growth , Literacy 
+from District
+where state Like '%Pradesh%' 
+And Literacy Between '70.00' and '95.00'
+Group by District,state,Literacy
+order BY State, Literacy asc;
+
+----------------------------------------------------------------------------------------------------------------
+
+-- ** Union **
+-- 
+Select top 5 Highest_Literacy_Districts as Litercy_rate, H_rate 
+From Literacy_Rate
+union
+Select Top 5 Lowest_Literacy_Rate_Districts, L_rate 
+From Literacy_Rate
+order by 1;
+
+----------------------------------------------------------------------------------------------------------------
+
+-- ** Joins ** 
+-- Comparing literacy of state with highest rate of the district. 
+
+Select r.state, r.Highest_Literacy_Districts, r.H_rate, l.literacy
+From Literacy_rate r
+left join
+Literacy l on r.state = l.state
+Group by r.state, r.Highest_Literacy_Districts,r.H_Rate,l.Literacy;
+
+-- Calculate literate population
+
+Select l.state, Round (((l.literacy/100) * p.Population_in_2011),0) Literate_population 
+from literacy l 
+left join Population 
+p on l.state = p.state
+Group by l.state, l.Literacy, p.Population_in_2011
+order by 2 Desc;
+
+----------------------------------------------------------------------------------------------------------------
+
+-- ** Subquery **
+-- Calculating the population of literate males and female from total population
+
+Select b.state, Round(b.male_pop,0) literate_male, Round(b.female_pop, 0) Literate_female, b.population from
+(Select a.state, ((a.male/100) * a.Population) Male_pop, ((a.female/100) * a.Population) female_pop, a.population from
+(Select l.state,Round((l.male), 2) Male,Round ((l.female),2) Female, p.population_in_2011 population
+from Literacy l inner join Population p
+on l.state = p.state) 
+a) 
+b  
+group by b.state,b.male_pop,b.female_pop, b.population;
+
+----------------------------------------------------------------------------------------------------------------
+
+-- ** Creating Temp Table **
+
+Drop table if exists #Population_Literacy
+
+Create Table #Population_literacy (
+Sr_no INT,
+State Varchar(200),
+Population INT,
+Literacy Float)
+
+Insert Into #Population_literacy
+Select p.Sr_no, p.State, Avg(p.population_in_2011) As AvG_population, Round(l.literacy,0) 
+From Population p
+join Literacy l 
+on p.State = l.State
+Group By p.State, p.Sr_No, l.literacy;
+
+Select * From #Population_literacy;
+
